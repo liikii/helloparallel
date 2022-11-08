@@ -1,0 +1,19 @@
+Communication limited the maximum speedup achieved
+- In the demo, the communication was telling each other the partial sums
+▪ Minimizing the cost of communication improved speedup
+- Moved students (“processors”) closer together (or let them shout
+
+
+
+Parallel thinking
+1. Decomposing work into pieces that can safely be performed in parallel
+2. Assigning work to processors
+3. Managing communication/synchronization between the processors so that it does not limit speedup
+
+
+Thinking about e!ciency
+▪ FAST != EFFICIENT
+Just because your program runs faster on a parallel computer, it does not mean it is using the 
+hardware e!ciently
+- Is 2x speedup on computer with 10 processors a good result
+
