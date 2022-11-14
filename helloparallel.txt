@@ -1,3 +1,21 @@
+Prerequisites
+CS110: Principles of Computer Systems is strong prerequisite for CS149. If you have not taken CS110 and feel like you have the background to take CS149, please contact your friendly instructors and let's talk it over.
+
+Textbook
+There is no required textbook for CS149. However, you may find the following textbooks helpful. However, in general these days there's plenty of great parallel programming resources available for free on the web.
+
+John L. Hennessy and David A. Patterson
+Computer Architecture, Sixth Edition: A Quantitative Approach. Morgan Kaufmann, 2017
+[ On Amazon ]
+Jason Sanders
+CUDA by Example: An Introduction to General-Purpose GPU Programming. 1st Edition. Addison-Wesley. 2010
+[ On Amazon ]
+David Kirk and Wen-mei Hwu
+Programming Massively Parallel Processors, Second Edition: A Hands-on Approach. 2nd Edition. Morgan Kauffmann. 2012
+[ On Amazon ]
+
+
+
 Communication limited the maximum speedup achieved
 - In the demo, the communication was telling each other the partial sums
 ▪ Minimizing the cost of communication improved speedup
@@ -16,4 +34,178 @@ Thinking about e!ciency
 Just because your program runs faster on a parallel computer, it does not mean it is using the 
 hardware e!ciently
 - Is 2x speedup on computer with 10 processors a good result
+
+
+Summary: three di$erent forms of parallel execution
+▪ Superscalar: exploit ILP within an instruction stream. Process di$erent instructions from the same
+instruction stream in parallel (within a core)
+- Parallelism automatically discovered by the hardware during execution
+▪ SIMD: multiple ALUs controlled by same instruction (within a core)
+- E%cient for data-parallel workloads: amortize control costs over many ALUs
+- Vectorization done by compiler (explicit SIMD) or at runtime by hardware (implicit SIMD) 
+▪ Multi-core: use multiple processing cores
+- Provides thread-level parallelism: simultaneously execute a completely di$erent instruction 
+stream on each core
+- Software creates threads to expose parallelism to hardware (e.g., via threading API
+
+
+向量运算
+SIMD 简介
+众所周知，计算机程序需要编译成指令才能让 CPU 识别并执行运算。所以，CPU 指令处理数据的能力是衡量 CPU 性能的重要指标。
+
+为了提高 CPU 指令处理数据的能力，半导体厂商在 CPU 中推出了一些可以同时并行处理多个数据的指令 —— SIMD 指令。
+
+SIMD 的全称是 Single Instruction Multiple Data，中文名“单指令多数据”。顾名思义，一条指令处理多个数据。
+
+▪ SM = “Streaming Multi-processor”
+
+
+The story so far…
+To utilize modern parallel processors e%ciently, an application must:
+1. Have su%cient parallel work to utilize all available execution units
+(across many cores and many execution units per core)
+2. Groups of parallel work items must require the same sequences of instructions 
+(to utilize SIMD execution)
+3. Expose more parallel work than processor ALUs to enable interleaving of work 
+to hide memory stalls
+
+
+Overcoming bandwidth limits is often the most important challenge facing 
+software developers targeting modern throughput-optimized systems.
+
+
+▪ Intel SPMD Program Compiler (ISPC)
+▪ SPMD: single program multiple data 
+
+
+Summary: shared address space model
+▪ Communication abstraction
+- Threads read/write variables in shared address space
+- Threads manipulate synchronization primitives: locks, atomic ops, etc.
+- Logical extension of uniprocessor programming *
+▪ Requires hardware support to implement e"ciently
+- Any processor can load and store from any address
+- Can be costly to scale to large numbers of processors
+(one of the reasons why high-core count processors are expensive)
+
+
+Programming models provide a way to think about the organization 
+of parallel programs (by imposing structure)
+▪ Shared address space: very little structure to communication
+- All threads can read and write to all shared variables
+▪ Message passing: communication is structured in the form of messages
+- All communication occurs in the form of messages
+- Communication is explicit in source code—the sends and receives)
+▪ Data parallel structure: more rigid structure to computation
+- Perform same function on elements of large collections
+
+
+
+Three programming models (abstractions)
+1. Shared address space
+2. Message passing
+3. Data parallel
+
+
+
+Mapping to hardware
+▪ Mapping “threads” (“workers”) to hardware execution units
+▪ Example 1: mapping by the operating system
+- e.g., map a thread to HW execution context on a CPU core
+▪ Example 2: mapping by the compiler
+- Map ISPC program instances to vector instruction lanes
+▪ Example 3: mapping by the hardware
+- Map CUDA thread blocks to GPU cores (discussed in future lecture)
+▪ Some interesting mapping decisions:
+- Place related threads (cooperating threads) on the same processor
+(maximize locality, data sharing, minimize costs of comm/sync)
+- Place unrelated threads on the same processor (one might be bandwidth limited and another might be compute limited) to 
+use machine more e#ciently
+
+
+Example: mapping to hardware
+▪ Consider an application that creates two threads
+▪ The application runs on the processor shown below
+- Two cores, two-execution contexts per core, up to instructions per clock, one instruction is an 8-wide SIMD instruction.
+Execution
+Context
+Execution
+Context
+Fetch/
+Decode
+Fetch/
+Decode
+SIMD Exec 2
+Exec 1
+Execution
+Context
+Execution
+Context
+Fetch/
+Decode
+Fetch/
+Decode
+SIMD Exec 2
+Exec 1
+▪ Question: “who” is responsible for mapping the applications’s threads to 
+the processor’s thread execution contexts? 
+Answer: the operating system
+▪ Question: If you were implementing the OS, how would to map the two 
+threads to the four execution contexts? 
+▪ Another question: How would you map 
+threads to execution contexts if your C 
+program spawned !ve threads?
+
+
+▪ Optimizing the performance of parallel programs is an iterative process of refining 
+choices for decomposition, assignment, and orchestration.
+
+
+P4 does 2x more work → P4 takes 2x longer to complete 
+ → 50% of parallel program’s
+ runtime is serial execution
+(work in serialized section here is about 1/5 of the work done by the entire 
+program, so S=0.2 in Amdahl’s law equation)
+
+
+Three ways to think about writing this program 
+▪ Data parallel thinking
+▪ SPMD / shared address space
+▪ Message passing
+
+
+
+When I talk about communication, I’m not just referring to messages between machines. 
+(e.g., in a datacenter)
+More examples:
+Communication between cores on a chip
+Communication between a core and its cache
+Communication between a core and memory
+
+
+
+Communication-to-computation ratio
+
+
+Remember:
+Always, always, always try the simplest parallel 
+solution first, then measure performance to see 
+where you stand.
+
+
+Establishing high watermarks *
+Add “math” (non-memory instructions)
+Does execution time increase linearly with operation count as math is added?
+(If so, this is evidence that code is instruction-rate limited)
+Change all array accesses to A[0]
+How much faster does your code get?
+(This establishes an upper bound on benefit of improving locality of data access)
+Remove all atomic operations or locks
+How much faster does your code get? (provided it still does approximately the same amount of work)
+(This establishes an upper bound on benefit of reducing sync overhead.)
+Remove almost all math, but load same data
+How much does execution-time decrease? If not much, suspect memory bottleneck
+* Computation, memory access, and synchronization are almost never perfectly overlapped. As a result, overall performance will 
+ rarely be dictated entirely by compute or by bandwidth or by sync. Even so, the sensitivity of performance change to the above 
+ program modifications can be a good indication of dominant cost
 
